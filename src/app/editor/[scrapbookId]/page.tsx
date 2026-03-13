@@ -5,9 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useEditorStore } from '@/stores/editor-store';
 import { Toolbar } from '@/components/editor/Toolbar';
+import { Tutorial } from '@/components/editor/Tutorial';
+import { PropertiesPanel } from '@/components/editor/PropertiesPanel';
 import type { CanvasHandle } from '@/components/editor/Canvas';
-import { EditorPage } from '@/types/editor';
-import { v4 as uuidv4 } from 'uuid';
+import { getPages, savePages, getScrapbook } from '@/lib/data';
+import { useAuth } from '@/components/auth/AuthProvider';
 import {
   ArrowLeft,
   Undo2,
@@ -46,45 +48,22 @@ export default function EditorPage_() {
     redo,
   } = useEditorStore();
 
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
 
   // Initialize editor
   useEffect(() => {
     setScrapbookId(scrapbookId);
 
-    // Load scrapbook data
-    const saved = localStorage.getItem('scrapbooks');
-    if (saved) {
-      const books = JSON.parse(saved);
-      const book = books.find((b: { id: string }) => b.id === scrapbookId);
+    async function load() {
+      const book = await getScrapbook(scrapbookId, user?.id);
       if (book) setTitle(book.title);
-    }
 
-    // Load pages
-    const savedPages = localStorage.getItem(`pages-${scrapbookId}`);
-    if (savedPages) {
-      setPages(JSON.parse(savedPages));
-    } else {
-      const defaultPages: EditorPage[] = [
-        {
-          id: uuidv4(),
-          pageNumber: 1,
-          backgroundColor: '#FFFBF0',
-          canvasJson: null,
-          thumbnailUrl: null,
-        },
-        {
-          id: uuidv4(),
-          pageNumber: 2,
-          backgroundColor: '#FFFBF0',
-          canvasJson: null,
-          thumbnailUrl: null,
-        },
-      ];
-      setPages(defaultPages);
-      localStorage.setItem(`pages-${scrapbookId}`, JSON.stringify(defaultPages));
+      const loadedPages = await getPages(scrapbookId);
+      setPages(loadedPages);
     }
-  }, [scrapbookId]);
+    load();
+  }, [scrapbookId, user]);
 
   // Save before navigating pages
   const saveCurrentPage = () => {
@@ -96,17 +75,16 @@ export default function EditorPage_() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     saveCurrentPage();
     setSaving(true);
 
-    // Save to localStorage in demo mode
-    setTimeout(() => {
-      const { pages: latestPages } = useEditorStore.getState();
-      localStorage.setItem(`pages-${scrapbookId}`, JSON.stringify(latestPages));
-      setDirty(false);
-      setSaving(false);
-    }, 300);
+    // Small delay to ensure state is updated
+    await new Promise((r) => setTimeout(r, 100));
+    const { pages: latestPages } = useEditorStore.getState();
+    await savePages(scrapbookId, latestPages);
+    setDirty(false);
+    setSaving(false);
   };
 
   const handlePageChange = (newIndex: number) => {
@@ -157,6 +135,7 @@ export default function EditorPage_() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      <Tutorial />
       {/* Top toolbar */}
       <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
@@ -269,6 +248,9 @@ export default function EditorPage_() {
             )}
           </div>
         </div>
+
+        {/* Right properties panel */}
+        <PropertiesPanel canvasRef={canvasRef} />
       </div>
     </div>
   );

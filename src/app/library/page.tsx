@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ScrapbookCard } from '@/components/library/ScrapbookCard';
 import { CreateDialog } from '@/components/library/CreateDialog';
-import { DEMO_SCRAPBOOKS } from '@/lib/mock-data';
 import { Scrapbook } from '@/types/database';
-import { createClient } from '@/lib/supabase/client';
+import { getScrapbooks, createScrapbook, deleteScrapbook } from '@/lib/data';
 import { Plus, BookOpen, LogOut } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 
 export default function LibraryPage() {
   const { user, isConfigured, signOut } = useAuth();
@@ -17,71 +15,20 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadScrapbooks();
-  }, []);
+    getScrapbooks(user?.id).then((books) => {
+      setScrapbooks(books);
+      setLoading(false);
+    });
+  }, [user]);
 
-  async function loadScrapbooks() {
-    const supabase = createClient();
-    if (supabase && user) {
-      const { data } = await supabase
-        .from('scrapbooks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-      if (data) {
-        setScrapbooks(data);
-        setLoading(false);
-        return;
-      }
-    }
-    // Demo mode
-    const saved = localStorage.getItem('scrapbooks');
-    if (saved) {
-      setScrapbooks(JSON.parse(saved));
-    } else {
-      setScrapbooks(DEMO_SCRAPBOOKS);
-      localStorage.setItem('scrapbooks', JSON.stringify(DEMO_SCRAPBOOKS));
-    }
-    setLoading(false);
+  async function handleCreate(title: string, theme: string) {
+    const newBook = await createScrapbook(title, theme, user?.id || 'demo-user');
+    setScrapbooks((prev) => [newBook, ...prev]);
   }
 
-  function handleCreate(title: string, theme: string) {
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const newBook: Scrapbook = {
-      id: uuidv4(),
-      user_id: user?.id || 'demo-user',
-      title,
-      slug: `${slug}-${Date.now()}`,
-      cover_url: null,
-      theme,
-      is_public: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    const supabase = createClient();
-    if (supabase && user) {
-      supabase.from('scrapbooks').insert(newBook).then(() => {
-        setScrapbooks((prev) => [newBook, ...prev]);
-      });
-    } else {
-      const updated = [newBook, ...scrapbooks];
-      setScrapbooks(updated);
-      localStorage.setItem('scrapbooks', JSON.stringify(updated));
-    }
-  }
-
-  function handleDelete(id: string) {
-    const supabase = createClient();
-    if (supabase && user) {
-      supabase.from('scrapbooks').delete().eq('id', id).then(() => {
-        setScrapbooks((prev) => prev.filter((s) => s.id !== id));
-      });
-    } else {
-      const updated = scrapbooks.filter((s) => s.id !== id);
-      setScrapbooks(updated);
-      localStorage.setItem('scrapbooks', JSON.stringify(updated));
-    }
+  async function handleDelete(id: string) {
+    await deleteScrapbook(id, user?.id);
+    setScrapbooks((prev) => prev.filter((s) => s.id !== id));
   }
 
   return (
