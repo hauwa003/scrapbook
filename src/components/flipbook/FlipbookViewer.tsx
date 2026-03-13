@@ -2,76 +2,87 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import HTMLFlipBook from 'react-pageflip';
-import { EditorPage } from '@/types/editor';
+import { EditorPage, BOOK_COVERS, BookCoverStyle } from '@/types/editor';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
 
 interface FlipbookViewerProps {
   pages: EditorPage[];
   title?: string;
+  coverStyleId?: string;
 }
 
-// Cover page
-const CoverPage = React.forwardRef<HTMLDivElement, { title: string }>(
-  function CoverPage({ title }, ref) {
+function getCoverStyle(id?: string): BookCoverStyle {
+  return BOOK_COVERS.find((c) => c.id === id) || BOOK_COVERS[0];
+}
+
+// ─── Cover Page ───
+const CoverPage = React.forwardRef<HTMLDivElement, { title: string; coverStyle: BookCoverStyle }>(
+  function CoverPage({ title, coverStyle }, ref) {
+    const { cover } = coverStyle;
     return (
       <div ref={ref} className="page-content cover-page">
         <div
           className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 30%, #8B4513 50%, #6B3410 100%)',
-          }}
+          style={{ background: cover.background }}
         >
-          {/* Leather texture overlay */}
+          {/* Subtle sheen */}
           <div
-            className="absolute inset-0 opacity-10"
+            className="absolute inset-0 opacity-[0.07]"
             style={{
-              backgroundImage: `radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 40%)`,
+              backgroundImage: `radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.3) 0%, transparent 60%)`,
             }}
           />
 
-          {/* Gold border frame */}
-          <div className="absolute inset-4 border-2 border-amber-400/40 rounded-sm" />
-          <div className="absolute inset-6 border border-amber-400/20 rounded-sm" />
+          {/* Double border frame */}
+          <div className="absolute inset-5 border-2 rounded-sm" style={{ borderColor: cover.accentColor }} />
+          <div className="absolute inset-7 border rounded-sm" style={{ borderColor: cover.borderColor }} />
 
           {/* Spine shadow */}
-          <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-black/30 to-transparent" />
+          <div className="absolute left-0 top-0 bottom-0 w-5 bg-gradient-to-r from-black/30 to-transparent" />
 
-          {/* Title area */}
-          <div className="relative z-10 text-center px-12">
-            <div className="w-16 h-0.5 bg-amber-400/60 mx-auto mb-6" />
+          {/* Title */}
+          <div className="relative z-10 text-center px-14">
+            <div className="w-20 h-[2px] mx-auto mb-8 rounded-full" style={{ backgroundColor: cover.accentColor }} />
             <h1
-              className="text-2xl font-serif font-bold tracking-wide leading-tight"
-              style={{
-                color: '#D4A94C',
-                textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-              }}
+              className="text-[22px] font-serif font-bold tracking-wider leading-snug"
+              style={{ color: cover.textColor, textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}
             >
               {title}
             </h1>
-            <div className="w-16 h-0.5 bg-amber-400/60 mx-auto mt-6" />
+            <div className="w-20 h-[2px] mx-auto mt-8 rounded-full" style={{ backgroundColor: cover.accentColor }} />
           </div>
 
-          {/* Decorative corner ornaments */}
-          <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-amber-400/30 rounded-tl-sm" />
-          <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-amber-400/30 rounded-tr-sm" />
-          <div className="absolute bottom-8 left-8 w-8 h-8 border-b-2 border-l-2 border-amber-400/30 rounded-bl-sm" />
-          <div className="absolute bottom-8 right-8 w-8 h-8 border-b-2 border-r-2 border-amber-400/30 rounded-br-sm" />
+          {/* Corner ornaments */}
+          {['top-9 left-9', 'top-9 right-9', 'bottom-9 left-9', 'bottom-9 right-9'].map((pos, i) => {
+            const isTop = i < 2;
+            const isLeft = i % 2 === 0;
+            return (
+              <div
+                key={pos}
+                className={`absolute ${pos} w-6 h-6`}
+                style={{
+                  borderTop: isTop ? `2px solid ${cover.borderColor}` : 'none',
+                  borderBottom: !isTop ? `2px solid ${cover.borderColor}` : 'none',
+                  borderLeft: isLeft ? `2px solid ${cover.borderColor}` : 'none',
+                  borderRight: !isLeft ? `2px solid ${cover.borderColor}` : 'none',
+                }}
+              />
+            );
+          })}
         </div>
       </div>
     );
   }
 );
 
-// Inner page
+// ─── Inner Page ───
 const PageContent = React.forwardRef<HTMLDivElement, { page: EditorPage; pageIndex: number; totalPages: number }>(
   function PageContent({ page, pageIndex, totalPages }, ref) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
       if (!page.canvasJson || !canvasRef.current) return;
-
       let disposed = false;
 
       async function renderPage() {
@@ -86,43 +97,35 @@ const PageContent = React.forwardRef<HTMLDivElement, { page: EditorPage; pageInd
 
         await staticCanvas.loadFromJSON(page.canvasJson!);
         staticCanvas.renderAll();
-
-        return () => {
-          disposed = true;
-          staticCanvas.dispose();
-        };
       }
 
       renderPage();
-
       return () => { disposed = true; };
     }, [page.canvasJson]);
 
-    const isEvenPage = pageIndex % 2 === 0;
+    const isLeftPage = pageIndex % 2 === 0;
 
     return (
-      <div ref={ref} className="page-content">
+      <div ref={ref} className="page-content inner-page">
         <div
           className="w-full h-full relative overflow-hidden"
           style={{ backgroundColor: page.backgroundColor || '#FFFBF0' }}
         >
-          {/* Paper texture */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-[0.03]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
-            }}
-          />
+          {/* Subtle paper grain */}
+          <div className="absolute inset-0 pointer-events-none paper-grain" />
 
-          {/* Gutter shadow (inner edge of page) */}
-          {isEvenPage ? (
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/[0.06] to-transparent pointer-events-none" />
+          {/* Gutter shadow */}
+          {isLeftPage ? (
+            <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-black/[0.05] via-black/[0.02] to-transparent pointer-events-none" />
           ) : (
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/[0.06] to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-black/[0.05] via-black/[0.02] to-transparent pointer-events-none" />
           )}
 
-          {/* Canvas content */}
-          <div className="w-full h-full flex items-center justify-center p-2">
+          {/* Top/bottom subtle edge */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-b from-black/[0.03] to-transparent pointer-events-none" />
+
+          {/* Content */}
+          <div className="w-full h-full flex items-center justify-center">
             {page.canvasJson ? (
               <canvas
                 ref={canvasRef}
@@ -131,19 +134,19 @@ const PageContent = React.forwardRef<HTMLDivElement, { page: EditorPage; pageInd
                 className="w-full h-full object-contain"
               />
             ) : (
-              <div className="text-gray-300/60 text-center select-none">
-                <p className="text-sm italic">Empty page</p>
+              <div className="text-gray-300/50 text-center select-none">
+                <p className="text-xs italic font-serif">This page is blank</p>
               </div>
             )}
           </div>
 
           {/* Page number */}
           <div
-            className={`absolute bottom-3 text-[11px] text-gray-400/70 select-none ${
-              isEvenPage ? 'left-5' : 'right-5'
+            className={`absolute bottom-3 text-[10px] font-serif select-none ${
+              isLeftPage ? 'left-5 text-gray-400/50' : 'right-5 text-gray-400/50'
             }`}
           >
-            {pageIndex + 1} / {totalPages}
+            {pageIndex + 1} of {totalPages}
           </div>
         </div>
       </div>
@@ -151,30 +154,37 @@ const PageContent = React.forwardRef<HTMLDivElement, { page: EditorPage; pageInd
   }
 );
 
-// Back cover
-const BackCover = React.forwardRef<HTMLDivElement>(
-  function BackCover(_, ref) {
+// ─── Back Cover ───
+const BackCover = React.forwardRef<HTMLDivElement, { coverStyle: BookCoverStyle }>(
+  function BackCover({ coverStyle }, ref) {
     return (
       <div ref={ref} className="page-content cover-page">
         <div
           className="w-full h-full relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 30%, #8B4513 50%, #6B3410 100%)',
-          }}
+          style={{ background: coverStyle.cover.background }}
         >
-          <div className="absolute inset-4 border border-amber-400/20 rounded-sm" />
-          <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-black/30 to-transparent" />
+          <div className="absolute inset-5 border rounded-sm" style={{ borderColor: coverStyle.cover.borderColor }} />
+          <div className="absolute right-0 top-0 bottom-0 w-5 bg-gradient-to-l from-black/30 to-transparent" />
+
+          {/* Small "Scrapbook" text at bottom center */}
+          <div className="absolute bottom-8 left-0 right-0 text-center">
+            <p className="text-[10px] tracking-[0.3em] uppercase opacity-40" style={{ color: coverStyle.cover.textColor }}>
+              Scrapbook
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 );
 
-export function FlipbookViewer({ pages, title = 'My Scrapbook' }: FlipbookViewerProps) {
+// ─── Main Component ───
+export function FlipbookViewer({ pages, title = 'My Scrapbook', coverStyleId }: FlipbookViewerProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bookRef = useRef<any>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const totalItems = pages.length + 2; // +cover +back
+  const coverStyle = getCoverStyle(coverStyleId);
+  const totalItems = pages.length + 2;
 
   const handlePrev = useCallback(() => {
     bookRef.current?.pageFlip()?.flipPrev();
@@ -184,7 +194,6 @@ export function FlipbookViewer({ pages, title = 'My Scrapbook' }: FlipbookViewer
     bookRef.current?.pageFlip()?.flipNext();
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') handlePrev();
@@ -195,91 +204,78 @@ export function FlipbookViewer({ pages, title = 'My Scrapbook' }: FlipbookViewer
   }, [handlePrev, handleNext]);
 
   return (
-    <div className="flex flex-col items-center gap-8">
-      {/* Book container with realistic shadow */}
+    <div className="flex flex-col items-center gap-10">
+      {/* Book with shadow */}
       <div className="book-container">
         <HTMLFlipBook
           ref={bookRef}
-          width={500}
-          height={650}
+          width={480}
+          height={640}
           size="stretch"
-          minWidth={350}
-          maxWidth={600}
-          minHeight={450}
-          maxHeight={780}
+          minWidth={320}
+          maxWidth={560}
+          minHeight={420}
+          maxHeight={740}
           showCover={true}
-          maxShadowOpacity={0.6}
+          maxShadowOpacity={0.5}
           mobileScrollSupport={true}
           onFlip={(e: { data: number }) => setCurrentPage(e.data)}
           className="flipbook-book"
           style={{}}
           startPage={0}
           drawShadow={true}
-          flippingTime={1000}
+          flippingTime={1200}
           usePortrait={true}
           startZIndex={0}
           autoSize={true}
           clickEventForward={true}
           useMouseEvents={true}
-          swipeDistance={30}
+          swipeDistance={20}
           showPageCorners={true}
           disableFlipByClick={false}
         >
-          {/* Cover */}
-          <CoverPage title={title} />
-
-          {/* Inner pages */}
+          <CoverPage title={title} coverStyle={coverStyle} />
           {pages.map((page, i) => (
-            <PageContent
-              key={page.id}
-              page={page}
-              pageIndex={i}
-              totalPages={pages.length}
-            />
+            <PageContent key={page.id} page={page} pageIndex={i} totalPages={pages.length} />
           ))}
-
-          {/* Back cover */}
-          <BackCover />
+          <BackCover coverStyle={coverStyle} />
         </HTMLFlipBook>
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-8">
         <button
           onClick={handlePrev}
           disabled={currentPage === 0}
-          className="p-3 rounded-full bg-white/90 shadow-lg hover:shadow-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 border border-gray-100"
+          className="p-3 rounded-full bg-white/80 shadow-lg backdrop-blur-sm hover:shadow-xl hover:bg-white disabled:opacity-0 disabled:pointer-events-none transition-all duration-300 hover:scale-110 active:scale-95 border border-white/50"
         >
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
+          <ChevronLeft className="w-5 h-5 text-stone-600" />
         </button>
 
-        <div className="flex items-center gap-3">
-          {/* Page indicator dots */}
-          <div className="flex gap-1.5">
-            {Array.from({ length: totalItems }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === currentPage
-                    ? 'w-6 bg-amber-600'
-                    : 'w-1.5 bg-gray-300'
-                }`}
-              />
-            ))}
-          </div>
+        <div className="flex gap-1.5 items-center">
+          {Array.from({ length: totalItems }).map((_, i) => (
+            <div
+              key={i}
+              className={`rounded-full transition-all duration-500 ${
+                i === currentPage
+                  ? 'w-7 h-2 bg-amber-700'
+                  : 'w-2 h-2 bg-stone-400/40'
+              }`}
+            />
+          ))}
         </div>
 
         <button
           onClick={handleNext}
           disabled={currentPage >= totalItems - 1}
-          className="p-3 rounded-full bg-white/90 shadow-lg hover:shadow-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 border border-gray-100"
+          className="p-3 rounded-full bg-white/80 shadow-lg backdrop-blur-sm hover:shadow-xl hover:bg-white disabled:opacity-0 disabled:pointer-events-none transition-all duration-300 hover:scale-110 active:scale-95 border border-white/50"
         >
-          <ChevronRight className="w-5 h-5 text-gray-700" />
+          <ChevronRight className="w-5 h-5 text-stone-600" />
         </button>
       </div>
 
-      <p className="text-xs text-gray-400">
-        Click page edges or use arrow keys to flip
+      <p className="text-[11px] text-stone-500/60 tracking-wide">
+        Click page corners or use arrow keys to turn pages
       </p>
     </div>
   );

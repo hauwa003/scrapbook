@@ -17,6 +17,7 @@ export default function PublicBookPage() {
   const slug = params.slug as string;
   const [pages, setPages] = useState<EditorPage[]>([]);
   const [title, setTitle] = useState('');
+  const [coverStyle, setCoverStyle] = useState('leather');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -30,6 +31,7 @@ export default function PublicBookPage() {
       }
 
       setTitle(book.title);
+      setCoverStyle(book.cover_style || 'leather');
       const loadedPages = await getPages(book.id);
       setPages(loadedPages);
       setLoading(false);
@@ -73,7 +75,7 @@ export default function PublicBookPage() {
 
       <main className="flex items-center justify-center py-16 px-4 min-h-[calc(100vh-56px)]">
         {pages.length > 0 ? (
-          <FlipbookViewer pages={pages} title={title} />
+          <FlipbookViewer pages={pages} title={title} coverStyleId={coverStyle} />
         ) : (
           <p className="text-stone-600 bg-white/30 backdrop-blur-sm rounded-xl px-8 py-6">
             This scrapbook has no pages yet.

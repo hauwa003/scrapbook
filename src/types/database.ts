@@ -13,6 +13,7 @@ export interface Scrapbook {
   slug: string;
   cover_url: string | null;
   theme: string;
+  cover_style: string;
   is_public: boolean;
   created_at: string;
   updated_at: string;

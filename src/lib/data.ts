@@ -64,7 +64,8 @@ export async function getScrapbookBySlug(slug: string): Promise<Scrapbook | null
 export async function createScrapbook(
   title: string,
   theme: string,
-  userId: string
+  userId: string,
+  coverStyle: string = 'leather'
 ): Promise<Scrapbook> {
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const newBook: Scrapbook = {
@@ -74,6 +75,7 @@ export async function createScrapbook(
     slug: `${slug}-${Date.now()}`,
     cover_url: null,
     theme,
+    cover_style: coverStyle,
     is_public: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

@@ -1,6 +1,7 @@
 'use client';
 
 import { Scrapbook } from '@/types/database';
+import { BOOK_COVERS } from '@/types/editor';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Eye, Share2, Trash2, MoreVertical, Globe } from 'lucide-react';
 import { useState } from 'react';
@@ -10,29 +11,21 @@ interface ScrapbookCardProps {
   onDelete: (id: string) => void;
 }
 
-const THEME_COLORS: Record<string, string> = {
-  classic: 'from-amber-100 to-orange-100',
-  modern: 'from-gray-100 to-slate-100',
-  pastel: 'from-pink-100 to-purple-100',
-  dark: 'from-gray-700 to-gray-900',
-  nature: 'from-green-100 to-emerald-100',
-  ocean: 'from-blue-100 to-cyan-100',
-};
-
 export function ScrapbookCard({ scrapbook, onDelete }: ScrapbookCardProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const gradient = THEME_COLORS[scrapbook.theme] || THEME_COLORS.classic;
-  const isDark = scrapbook.theme === 'dark';
+  const coverDef = BOOK_COVERS.find((c) => c.id === scrapbook.cover_style) || BOOK_COVERS[0];
+  const isDark = true; // cover backgrounds are always dark-ish
 
   return (
     <div className="group relative">
       <div
         onClick={() => router.push(`/editor/${scrapbook.id}`)}
-        className={`cursor-pointer bg-gradient-to-br ${gradient} rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-white/50`}
+        className="cursor-pointer rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+        style={{ background: coverDef.preview }}
       >
         {/* Book spine effect */}
-        <div className="absolute left-0 top-0 bottom-0 w-3 bg-black/10 rounded-l-2xl" />
+        <div className="absolute left-0 top-0 bottom-0 w-3 bg-black/20 rounded-l-2xl" />
 
         {/* Cover */}
         <div className="p-6 pl-8 min-h-[200px] flex flex-col justify-between">

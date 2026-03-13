@@ -21,6 +21,7 @@ export default function ViewerPage() {
   const [pages, setPages] = useState<EditorPage[]>([]);
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
+  const [coverStyle, setCoverStyle] = useState('leather');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function ViewerPage() {
       if (book) {
         setTitle(book.title);
         setSlug(book.slug);
+        setCoverStyle(book.cover_style || 'leather');
       }
 
       const loadedPages = await getPages(scrapbookId);
@@ -122,7 +124,7 @@ export default function ViewerPage() {
       {/* Flipbook */}
       <main className="flex items-center justify-center py-16 px-4 min-h-[calc(100vh-56px)]">
         {pages.length > 0 ? (
-          <FlipbookViewer pages={pages} title={title} />
+          <FlipbookViewer pages={pages} title={title} coverStyleId={coverStyle} />
         ) : (
           <div className="text-center py-20 bg-white/30 backdrop-blur-sm rounded-2xl px-12">
             <p className="text-6xl mb-4">📖</p>

@@ -21,8 +21,8 @@ export default function LibraryPage() {
     });
   }, [user]);
 
-  async function handleCreate(title: string, theme: string) {
-    const newBook = await createScrapbook(title, theme, user?.id || 'demo-user');
+  async function handleCreate(title: string, theme: string, coverStyle: string) {
+    const newBook = await createScrapbook(title, theme, user?.id || 'demo-user', coverStyle);
     setScrapbooks((prev) => [newBook, ...prev]);
   }
 
